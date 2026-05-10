@@ -1,4 +1,5 @@
 """Live terminal dashboard for benchmark progress."""
+
 from __future__ import annotations
 
 import time
@@ -20,6 +21,7 @@ try:
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
+
     _RICH = True
 except ImportError:
     _RICH = False
@@ -28,6 +30,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # One-shot progress print
 # ---------------------------------------------------------------------------
+
 
 def print_progress(db: "BenchmarkDB", scheduler: "BenchmarkScheduler") -> None:
     """Print a one-shot progress summary using Rich if available, else plain text."""
@@ -42,16 +45,20 @@ def print_progress(db: "BenchmarkDB", scheduler: "BenchmarkScheduler") -> None:
 
 def _plain_print_progress(sched_prog: dict, db_prog: dict) -> None:
     print("\n=== Benchmark Progress ===")
-    print(f"  Scheduler  — total={sched_prog['total']}  "
-          f"queued={sched_prog['queued']}  "
-          f"running={sched_prog['running']}  "
-          f"done={sched_prog['done']}  "
-          f"failed={sched_prog['failed']}")
-    print(f"  Results DB — total={db_prog['total']}  "
-          f"queued={db_prog['queued']}  "
-          f"running={db_prog['running']}  "
-          f"done={db_prog['done']}  "
-          f"failed={db_prog['failed']}")
+    print(
+        f"  Scheduler  — total={sched_prog['total']}  "
+        f"queued={sched_prog['queued']}  "
+        f"running={sched_prog['running']}  "
+        f"done={sched_prog['done']}  "
+        f"failed={sched_prog['failed']}"
+    )
+    print(
+        f"  Results DB — total={db_prog['total']}  "
+        f"queued={db_prog['queued']}  "
+        f"running={db_prog['running']}  "
+        f"done={db_prog['done']}  "
+        f"failed={db_prog['failed']}"
+    )
     total = sched_prog["total"]
     done = sched_prog["done"]
     pct = 100 * done / total if total else 0.0
@@ -148,6 +155,7 @@ def _rich_print_progress(
 # ---------------------------------------------------------------------------
 # Live dashboard (blocks)
 # ---------------------------------------------------------------------------
+
 
 def run_live_dashboard(
     db: "BenchmarkDB",

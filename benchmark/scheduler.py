@@ -1,4 +1,5 @@
 """Schedules and orchestrates N-datasets × M-configs experiments."""
+
 from __future__ import annotations
 
 import json
@@ -15,16 +16,17 @@ logger = logging.getLogger(__name__)
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BenchmarkJob:
     job_id: str
     dataset_name: str
     dataset_source: str
-    config_path: str        # Path to the specific config in configs.jsonl
-    config_index: int       # Index in configs.jsonl
+    config_path: str  # Path to the specific config in configs.jsonl
+    config_index: int  # Index in configs.jsonl
     config_hash: str
     seed: int = 42
-    priority: int = 0       # Higher = runs first
+    priority: int = 0  # Higher = runs first
     status: str = "queued"  # queued/running/done/failed
     attempts: int = 0
     max_attempts: int = 3
@@ -33,6 +35,7 @@ class BenchmarkJob:
 # ---------------------------------------------------------------------------
 # Scheduler
 # ---------------------------------------------------------------------------
+
 
 class BenchmarkScheduler:
     """Manages the job queue and dispatches experiments.
@@ -211,9 +214,7 @@ class BenchmarkScheduler:
     def mark_failed(self, job_id: str, error: str) -> None:
         with self._connect() as conn:
             # If max_attempts reached, set status=failed; else requeue
-            row = conn.execute(
-                "SELECT attempts, max_attempts FROM jobs WHERE job_id=?", (job_id,)
-            ).fetchone()
+            row = conn.execute("SELECT attempts, max_attempts FROM jobs WHERE job_id=?", (job_id,)).fetchone()
             if row and row["attempts"] >= row["max_attempts"]:
                 new_status = "failed"
             else:
@@ -333,9 +334,7 @@ class BenchmarkScheduler:
     def progress(self) -> dict:
         """Returns progress dict: total/queued/running/done/failed."""
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT status, COUNT(*) AS cnt FROM jobs GROUP BY status"
-            ).fetchall()
+            rows = conn.execute("SELECT status, COUNT(*) AS cnt FROM jobs GROUP BY status").fetchall()
         counts = {row["status"]: row["cnt"] for row in rows}
         total = sum(counts.values())
         return {
@@ -358,13 +357,16 @@ class BenchmarkScheduler:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _now() -> str:
     from datetime import datetime, timezone
+
     return datetime.now(timezone.utc).isoformat()
 
 
 def _hash_config(cfg: dict) -> str:
     import hashlib
+
     blob = json.dumps(cfg, sort_keys=True).encode()
     return hashlib.sha256(blob).hexdigest()[:16]
 
@@ -414,11 +416,19 @@ def _result_to_record(result: "RunResult", job: BenchmarkJob, cfg: "RunConfig") 
     from benchmark.db import RunRecord
 
     config_dict = cfg.config_dict
-    combiner = config_dict.get("combiner", {}).get("type", "") if isinstance(config_dict.get("combiner"), dict) else config_dict.get("combiner", "")
+    combiner = (
+        config_dict.get("combiner", {}).get("type", "")
+        if isinstance(config_dict.get("combiner"), dict)
+        else config_dict.get("combiner", "")
+    )
     input_features = config_dict.get("input_features", [])
     encoders = [f.get("encoder", {}).get("type", f.get("encoder", "")) for f in input_features if isinstance(f, dict)]
     output_features = config_dict.get("output_features", [])
-    decoder = output_features[0].get("decoder", {}).get("type", "") if output_features and isinstance(output_features[0], dict) else ""
+    decoder = (
+        output_features[0].get("decoder", {}).get("type", "")
+        if output_features and isinstance(output_features[0], dict)
+        else ""
+    )
     trainer = config_dict.get("trainer", {})
     lr = trainer.get("learning_rate", 0.0) if isinstance(trainer, dict) else 0.0
     batch_size = trainer.get("batch_size", 0) if isinstance(trainer, dict) else 0

@@ -2,6 +2,7 @@
 
 Uses DuckDB for queries over Parquet files. Zero-server, analytical, cross-platform.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -16,25 +17,25 @@ import pandas as pd
 RUNS_SCHEMA = {
     "run_id": "VARCHAR",
     "dataset_name": "VARCHAR",
-    "dataset_source": "VARCHAR",       # "openml" | "kaggle" | "ludwig"
+    "dataset_source": "VARCHAR",  # "openml" | "kaggle" | "ludwig"
     "dataset_n_rows": "INTEGER",
     "dataset_n_features": "INTEGER",
     "config_hash": "VARCHAR",
     "combiner": "VARCHAR",
-    "input_encoders": "VARCHAR",       # JSON string
+    "input_encoders": "VARCHAR",  # JSON string
     "output_decoder": "VARCHAR",
     "learning_rate": "DOUBLE",
     "batch_size": "INTEGER",
     "n_epochs": "INTEGER",
     "seed": "INTEGER",
-    "status": "VARCHAR",               # queued/running/done/failed
+    "status": "VARCHAR",  # queued/running/done/failed
     "start_time": "TIMESTAMP",
     "end_time": "TIMESTAMP",
     "wall_seconds": "DOUBLE",
     "gpu_type": "VARCHAR",
     "primary_metric": "VARCHAR",
     "primary_metric_value": "DOUBLE",
-    "secondary_metrics": "VARCHAR",    # JSON string
+    "secondary_metrics": "VARCHAR",  # JSON string
     "error_message": "VARCHAR",
     "checkpoint_path": "VARCHAR",
 }
@@ -43,6 +44,7 @@ RUNS_SCHEMA = {
 @dataclass
 class RunRecord:
     """Represents a single benchmark run."""
+
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     dataset_name: str = ""
     dataset_source: str = ""
@@ -50,7 +52,7 @@ class RunRecord:
     dataset_n_features: int = 0
     config_hash: str = ""
     combiner: str = ""
-    input_encoders: str = ""           # JSON string
+    input_encoders: str = ""  # JSON string
     output_decoder: str = ""
     learning_rate: float = 0.0
     batch_size: int = 0
@@ -63,7 +65,7 @@ class RunRecord:
     gpu_type: str = ""
     primary_metric: str = ""
     primary_metric_value: float | None = None
-    secondary_metrics: str = "{}"      # JSON string
+    secondary_metrics: str = "{}"  # JSON string
     error_message: str = ""
     checkpoint_path: str = ""
 
@@ -133,6 +135,7 @@ class BenchmarkDB:
     def _file_lock(self):
         """Returns a filelock.FileLock context manager for the results directory."""
         from filelock import FileLock
+
         return FileLock(str(self.lock_path), timeout=30)
 
     def _rebuild_index(self) -> None:
@@ -166,9 +169,7 @@ class BenchmarkDB:
         if not self.index_path.exists():
             return pd.DataFrame(columns=list(RUNS_SCHEMA.keys()))
         con = duckdb.connect(":memory:")
-        result = con.execute(
-            sql.replace("{index}", str(self.index_path))
-        ).fetchdf()
+        result = con.execute(sql.replace("{index}", str(self.index_path))).fetchdf()
         con.close()
         return result
 

@@ -8,6 +8,7 @@ The dashboard expects a `data/` directory alongside index.html. This script
 symlinks (or uses) the specified data directory so the browser can fetch
 data/summary.json, data/datasets.json, etc.
 """
+
 from __future__ import annotations
 
 import argparse

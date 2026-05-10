@@ -3,6 +3,7 @@
 The registry maps dataset_name → DatasetEntry and is persisted as JSON.
 The scheduler reads it to know where to find each dataset.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,19 +20,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DatasetEntry:
     name: str
-    source: str              # "openml" | "kaggle" | "ludwig" | "path"
+    source: str  # "openml" | "kaggle" | "ludwig" | "path"
     openml_task_id: int | None = None
-    kaggle_ref: str | None = None   # e.g. "titanic" or "user/dataset"
-    local_path: str | None = None   # absolute path for source="path"
+    kaggle_ref: str | None = None  # e.g. "titanic" or "user/dataset"
+    local_path: str | None = None  # absolute path for source="path"
     target_column: str | None = None
     n_rows: int | None = None
     n_features: int | None = None
-    task_type: str | None = None    # "binary" | "multiclass" | "regression"
-    priority: int = 0                  # higher = runs first
+    task_type: str | None = None  # "binary" | "multiclass" | "regression"
+    priority: int = 0  # higher = runs first
     seed: int = 42
     tags: list[str] = field(default_factory=list)
     quality_passed: bool | None = None
-    n_configs: int = 0                 # number of configs generated so far
+    n_configs: int = 0  # number of configs generated so far
     notes: str = ""
 
 
@@ -117,6 +118,7 @@ def load_dataframe_for_entry(entry: DatasetEntry) -> "pd.DataFrame":
         if entry.openml_task_id is None:
             raise ValueError(f"[{entry.name}] source='openml' but openml_task_id is not set")
         import openml
+
         task = openml.tasks.get_task(entry.openml_task_id)
         dataset = task.get_dataset()
         X, y, _, _ = dataset.get_data(task=task)
@@ -127,6 +129,7 @@ def load_dataframe_for_entry(entry: DatasetEntry) -> "pd.DataFrame":
 
     elif source == "ludwig":
         from ludwig.datasets import get_dataset
+
         loader = get_dataset(entry.name)
         train, val, test = loader.load(split=True)
         frames = [d for d in (train, val, test) if d is not None and len(d) > 0]
@@ -134,9 +137,7 @@ def load_dataframe_for_entry(entry: DatasetEntry) -> "pd.DataFrame":
 
     elif source == "kaggle":
         if not entry.local_path:
-            raise ValueError(
-                f"[{entry.name}] source='kaggle' but local_path is not set — download first"
-            )
+            raise ValueError(f"[{entry.name}] source='kaggle' but local_path is not set — download first")
         p = Path(entry.local_path)
         return pd.read_parquet(p) if p.suffix == ".parquet" else pd.read_csv(p)
 
@@ -159,13 +160,15 @@ def register_openml_suite(
     for task_id in suite.tasks:
         name = f"openml_task_{task_id}"
         if name not in registry:
-            registry.add(DatasetEntry(
-                name=name,
-                source="openml",
-                openml_task_id=task_id,
-                priority=priority,
-                tags=[f"suite_{suite_id}"],
-            ))
+            registry.add(
+                DatasetEntry(
+                    name=name,
+                    source="openml",
+                    openml_task_id=task_id,
+                    priority=priority,
+                    tags=[f"suite_{suite_id}"],
+                )
+            )
             added += 1
     return added
 
@@ -176,15 +179,18 @@ def register_ludwig_builtins(
 ) -> int:
     """Add all Ludwig built-in datasets to the registry."""
     from ludwig.datasets import list_datasets
+
     added = 0
     for name in list_datasets():
         if name not in registry:
-            registry.add(DatasetEntry(
-                name=name,
-                source="ludwig",
-                priority=priority,
-                tags=["ludwig_builtin"],
-            ))
+            registry.add(
+                DatasetEntry(
+                    name=name,
+                    source="ludwig",
+                    priority=priority,
+                    tags=["ludwig_builtin"],
+                )
+            )
             added += 1
     return added
 
@@ -273,14 +279,16 @@ def register_kaggle_filtered(
             if p.exists():
                 local_path = str(p)
                 break
-        registry.add(DatasetEntry(
-            name=safe_name,
-            source="kaggle",
-            kaggle_ref=ref,
-            local_path=local_path,
-            priority=priority,
-            tags=["kaggle"] + ds.get("tags", []),
-            notes=ds.get("title", ""),
-        ))
+        registry.add(
+            DatasetEntry(
+                name=safe_name,
+                source="kaggle",
+                kaggle_ref=ref,
+                local_path=local_path,
+                priority=priority,
+                tags=["kaggle"] + ds.get("tags", []),
+                notes=ds.get("title", ""),
+            )
+        )
         added += 1
     return added

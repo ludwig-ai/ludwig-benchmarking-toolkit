@@ -24,6 +24,7 @@ Usage:
     # Dry run — show what would happen
     python scripts/prepare_benchmark.py --openml-suite 99 --dry-run
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,13 +43,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
-
-
-
-
 # ---------------------------------------------------------------------------
 # Config generation (mirrors generate_configs.py logic, importable here)
 # ---------------------------------------------------------------------------
+
 
 def _generate_and_write_configs(
     entry,
@@ -66,10 +64,7 @@ def _generate_and_write_configs(
         raise ValueError(f"[{entry.name}] target_column is not set")
 
     sampled = configs_from_dataframe(df, target_column=target_column, n=n, seed=seed)
-    valid_configs = [
-        sc.config_dict for sc in sampled
-        if validate_config_for_dataset(sc.config_dict, df).is_valid
-    ]
+    valid_configs = [sc.config_dict for sc in sampled if validate_config_for_dataset(sc.config_dict, df).is_valid]
 
     if valid_configs:
         out_dir = configs_dir / entry.name
@@ -85,6 +80,7 @@ def _generate_and_write_configs(
 # ---------------------------------------------------------------------------
 # Summary table (Rich if available, plain text fallback)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class _DatasetSummaryRow:
@@ -153,6 +149,7 @@ def _print_summary_table(rows: list[_DatasetSummaryRow]) -> None:
 # Core pipeline
 # ---------------------------------------------------------------------------
 
+
 def _prepare_entry(
     entry,
     configs_dir: Path,
@@ -179,11 +176,13 @@ def _prepare_entry(
     try:
         # 1. Load data
         from benchmark.dataset_registry import load_dataframe_for_entry
+
         df = load_dataframe_for_entry(entry)
 
         # 2. Quality check
         if not skip_quality_check:
             from ludwig.utils.dataset_quality import check_dataset_quality
+
             qr = check_dataset_quality(df, target_column=entry.target_column, dataset_name=entry.name)
             summary.quality = "PASS" if qr.passed else "FAIL"
             if not qr.passed:
@@ -203,16 +202,15 @@ def _prepare_entry(
                 entry.target_column = entry._openml_target
             else:
                 from ludwig.automl.target_detection import detect_target_column
+
                 det = detect_target_column(df)
                 entry.target_column = det.column
-                logger.info(
-                    "[%s] Auto-detected target: %s (confidence=%.2f)",
-                    entry.name, det.column, det.confidence
-                )
+                logger.info("[%s] Auto-detected target: %s (confidence=%.2f)", entry.name, det.column, det.confidence)
 
         # 4. Infer task type from target column if not set
         if not entry.task_type and entry.target_column in df.columns:
             from ludwig.automl.target_detection import infer_task_type
+
             entry.task_type = infer_task_type(df[entry.target_column]).value
 
         # 5. Update metadata
@@ -236,11 +234,9 @@ def _prepare_entry(
             # In dry-run mode, count without writing
             from ludwig.automl.config_sampler import configs_from_dataframe
             from ludwig.automl.config_validator import validate_config_for_dataset
+
             sampled = configs_from_dataframe(df, target_column=entry.target_column, n=n, seed=seed)
-            n_valid = sum(
-                1 for sc in sampled
-                if validate_config_for_dataset(sc.config_dict, df).is_valid
-            )
+            n_valid = sum(1 for sc in sampled if validate_config_for_dataset(sc.config_dict, df).is_valid)
             summary.n_configs = n_valid
 
     except Exception as exc:
@@ -255,6 +251,7 @@ def _prepare_entry(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -399,10 +396,7 @@ def main() -> None:
     # --resume: skip datasets that already have configs.jsonl
     if args.resume:
         before = len(entries)
-        entries = [
-            e for e in entries
-            if not (configs_dir / e.name / "configs.jsonl").exists()
-        ]
+        entries = [e for e in entries if not (configs_dir / e.name / "configs.jsonl").exists()]
         logger.info("--resume: skipping %d datasets that already have configs.jsonl", before - len(entries))
 
     logger.info("Preparing %d datasets ...", len(entries))
@@ -431,9 +425,11 @@ def main() -> None:
     n_error = sum(1 for r in summary_rows if r.error)
     total_configs = sum(r.n_configs for r in summary_rows)
 
-    print(f"\nTotal: {len(summary_rows)} datasets | "
-          f"{n_ok} OK | {n_fail_quality} quality fail | {n_error} error | "
-          f"{total_configs} configs generated")
+    print(
+        f"\nTotal: {len(summary_rows)} datasets | "
+        f"{n_ok} OK | {n_fail_quality} quality fail | {n_error} error | "
+        f"{total_configs} configs generated"
+    )
     if args.dry_run:
         print("[DRY RUN] No files were written.")
 

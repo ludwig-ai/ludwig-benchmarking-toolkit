@@ -3,6 +3,7 @@
 Usage:
     python filter_kaggle.py --input kaggle_registry.json --output ml_ready.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -14,6 +15,7 @@ ALLOWED_LICENSES = {"cc0-1.0", "cc-by-4.0", "odc-odbl", "cc-by-sa-4.0"}
 # ---------------------------------------------------------------------------
 # Core filter
 # ---------------------------------------------------------------------------
+
 
 def filter_ml_ready(
     registry: list[dict],
@@ -86,9 +88,7 @@ def _normalize_license(raw: str) -> str:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Filter scraped Kaggle registry to ML-ready tabular datasets."
-    )
+    parser = argparse.ArgumentParser(description="Filter scraped Kaggle registry to ML-ready tabular datasets.")
     parser.add_argument("--input", required=True, help="Path to kaggle_registry.json from scrape_kaggle.py")
     parser.add_argument("--output", required=True, help="Output path for filtered ml_ready.json")
     parser.add_argument("--min-votes", type=int, default=5, help="Minimum vote count (default: 5)")

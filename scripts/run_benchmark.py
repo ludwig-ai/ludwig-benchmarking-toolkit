@@ -27,6 +27,7 @@ Usage examples:
     # Cost estimate only
     python scripts/run_benchmark.py --openml-suite 99 --estimate-cost
 """
+
 from __future__ import annotations
 
 import argparse
@@ -48,6 +49,7 @@ try:
     from rich.console import Console as _RichConsole
     from rich.logging import RichHandler as _RichHandler
     from rich.panel import Panel as _RichPanel
+
     _RICH = True
 except ImportError:
     _RICH = False
@@ -78,6 +80,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
+
 
 def _print_banner(args: argparse.Namespace, n_datasets: int, n_total_jobs: int) -> None:
     lines = [
@@ -125,6 +128,7 @@ def _print_banner(args: argparse.Namespace, n_datasets: int, n_total_jobs: int) 
 # ---------------------------------------------------------------------------
 # Dataset selection
 # ---------------------------------------------------------------------------
+
 
 def _build_registry(args: argparse.Namespace) -> "DatasetRegistry":  # noqa: F821
     from benchmark.dataset_registry import (
@@ -186,6 +190,7 @@ def _select_entries(
 # Config generation
 # ---------------------------------------------------------------------------
 
+
 def _configs_jsonl_path(configs_dir: Path, dataset_name: str) -> Path:
     return configs_dir / dataset_name / "configs.jsonl"
 
@@ -241,10 +246,7 @@ def _generate_configs_for_entry(
 
     df = _load_dataframe_for_entry(entry)
     sampled = configs_from_dataframe(df, target_column=entry.target_column, n=n, seed=seed)
-    valid_configs = [
-        sc.config_dict for sc in sampled
-        if validate_config_for_dataset(sc.config_dict, df).is_valid
-    ]
+    valid_configs = [sc.config_dict for sc in sampled if validate_config_for_dataset(sc.config_dict, df).is_valid]
 
     if valid_configs:
         out_dir = configs_dir / entry.name
@@ -276,6 +278,7 @@ def _load_dataframe_for_entry(entry) -> "pd.DataFrame":  # noqa: F821
         if entry.openml_task_id is None:
             raise ValueError(f"[{entry.name}] source='openml' but openml_task_id is not set")
         import openml
+
         task = openml.tasks.get_task(entry.openml_task_id)
         dataset = task.get_dataset()
         X, y, _, _ = dataset.get_data(task=task)
@@ -284,6 +287,7 @@ def _load_dataframe_for_entry(entry) -> "pd.DataFrame":  # noqa: F821
 
     elif source == "ludwig":
         from ludwig.datasets import get_dataset
+
         loader = get_dataset(entry.name)
         train, val, test = loader.load(split=True)
         frames = [d for d in (train, val, test) if d is not None and len(d) > 0]
@@ -310,6 +314,7 @@ def _count_configs(jsonl_path: Path) -> int:
 # ---------------------------------------------------------------------------
 # Baseline runs
 # ---------------------------------------------------------------------------
+
 
 def _run_baselines(
     entries: list,
@@ -366,6 +371,7 @@ def _run_baselines(
 # Job scheduling and execution
 # ---------------------------------------------------------------------------
 
+
 def _populate_scheduler(
     scheduler: "BenchmarkScheduler",  # noqa: F821
     entries: list,
@@ -392,6 +398,7 @@ def _apply_max_jobs(scheduler: "BenchmarkScheduler", max_jobs: int) -> None:  # 
     # Mark excess queued jobs as cancelled by fetching and immediately failing them
     # We do this by reading from SQLite directly
     import sqlite3
+
     db_path = scheduler._db_path
     with sqlite3.connect(str(db_path), timeout=30) as conn:
         conn.row_factory = sqlite3.Row
@@ -412,6 +419,7 @@ def _apply_max_jobs(scheduler: "BenchmarkScheduler", max_jobs: int) -> None:  # 
 def _run_with_max_attempts(scheduler: "BenchmarkScheduler", max_attempts: int) -> None:  # noqa: F821
     """Patch max_attempts into the jobs table for all queued jobs."""
     import sqlite3
+
     db_path = scheduler._db_path
     with sqlite3.connect(str(db_path), timeout=30) as conn:
         conn.execute(
@@ -424,6 +432,7 @@ def _run_with_max_attempts(scheduler: "BenchmarkScheduler", max_attempts: int) -
 # ---------------------------------------------------------------------------
 # Live dashboard (background thread)
 # ---------------------------------------------------------------------------
+
 
 def _start_live_dashboard_thread(
     db: "BenchmarkDB",  # noqa: F821
@@ -449,6 +458,7 @@ def _start_live_dashboard_thread(
 # ---------------------------------------------------------------------------
 # Final summary
 # ---------------------------------------------------------------------------
+
 
 def _print_final_summary(
     db: "BenchmarkDB",  # noqa: F821
@@ -498,9 +508,7 @@ def _print_final_summary(
         if not win_df.empty:
             lines += ["", "  Combiner win rates:"]
             for _, row in win_df.iterrows():
-                lines.append(
-                    f"    {row['combiner']:<20} wins={row['wins']}  rate={row['win_rate']:.1f}%"
-                )
+                lines.append(f"    {row['combiner']:<20} wins={row['wins']}  rate={row['win_rate']:.1f}%")
     except Exception as exc:
         logger.debug("Could not fetch combiner_win_rates: %s", exc)
 
@@ -519,6 +527,7 @@ def _print_final_summary(
 # ---------------------------------------------------------------------------
 # Cost estimation
 # ---------------------------------------------------------------------------
+
 
 def _do_cost_estimate(entries: list, args: argparse.Namespace) -> None:
     from benchmark.cost_estimator import estimate_experiment_cost, print_cost_report
@@ -543,6 +552,7 @@ def _do_cost_estimate(entries: list, args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 # Argument parser
 # ---------------------------------------------------------------------------
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -776,6 +786,7 @@ def _build_parser() -> argparse.ArgumentParser:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
@@ -784,11 +795,13 @@ def main() -> None:
 
     # Require at least one dataset source (unless just estimating cost from an
     # existing registry file)
-    has_source = any([
-        args.openml_suite is not None,
-        args.ludwig_builtins,
-        args.datasets,
-    ])
+    has_source = any(
+        [
+            args.openml_suite is not None,
+            args.ludwig_builtins,
+            args.datasets,
+        ]
+    )
     registry_path = Path(args.registry)
     if not has_source and not registry_path.exists():
         parser.error(
@@ -825,9 +838,7 @@ def main() -> None:
     n_datasets = len(entries)
     # Count existing configs to estimate total jobs
     configs_dir = Path(args.configs_dir)
-    n_existing_configs = sum(
-        _count_configs(_configs_jsonl_path(configs_dir, e.name)) for e in entries
-    )
+    n_existing_configs = sum(_count_configs(_configs_jsonl_path(configs_dir, e.name)) for e in entries)
     # For banner: use existing count if skip-gen, else n_configs * n_datasets
     if args.skip_config_gen:
         estimated_jobs = n_existing_configs
@@ -881,7 +892,11 @@ def main() -> None:
     prog = scheduler.progress()
     logger.info(
         "Queue: total=%d queued=%d running=%d done=%d failed=%d",
-        prog["total"], prog["queued"], prog["running"], prog["done"], prog["failed"],
+        prog["total"],
+        prog["queued"],
+        prog["running"],
+        prog["done"],
+        prog["failed"],
     )
 
     if prog["queued"] == 0:
@@ -896,9 +911,7 @@ def main() -> None:
         stop_event = threading.Event()
         dashboard_thread = None
         if args.live_dashboard:
-            dashboard_thread = _start_live_dashboard_thread(
-                db, scheduler, args.refresh_seconds, stop_event
-            )
+            dashboard_thread = _start_live_dashboard_thread(db, scheduler, args.refresh_seconds, stop_event)
 
         try:
             if args.mode == "sequential":

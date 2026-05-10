@@ -7,6 +7,7 @@ AutoGluon support is optional (if installed).
 Also supports loading precomputed baselines from TabRepo for OpenML datasets:
 https://github.com/autogluon/tabrepo (219,136 CPU-hours of precomputed results)
 """
+
 from __future__ import annotations
 
 import json
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _encode_categoricals(
     train_df: pd.DataFrame,
@@ -74,7 +76,9 @@ def _encode_labels(
     return encode(train_y), encode(val_y), encode(test_y), {"classes": classes}
 
 
-def _primary_metric(task_type: str, y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray | None) -> tuple[str, float]:
+def _primary_metric(
+    task_type: str, y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray | None
+) -> tuple[str, float]:
     """Return (metric_name, value) for the appropriate primary metric."""
     from sklearn.metrics import accuracy_score, r2_score, roc_auc_score
 
@@ -115,6 +119,7 @@ def _make_run_result(
     dataset_n_features: int,
 ) -> "RunResult":
     from benchmark.runner import RunResult
+
     return RunResult(
         run_id=run_id,
         status=status,
@@ -132,6 +137,7 @@ def _make_run_result(
 # ---------------------------------------------------------------------------
 # XGBoost baseline
 # ---------------------------------------------------------------------------
+
 
 def run_xgboost_baseline(
     train_df: pd.DataFrame,
@@ -194,7 +200,8 @@ def run_xgboost_baseline(
 
         model = xgb.XGBClassifier(**params) if task_type != "regression" else xgb.XGBRegressor(**params)
         model.fit(
-            train_x, train_y,
+            train_x,
+            train_y,
             eval_set=[(val_x, val_y)],
             verbose=False,
         )
@@ -236,6 +243,7 @@ def run_xgboost_baseline(
 # ---------------------------------------------------------------------------
 # LightGBM baseline
 # ---------------------------------------------------------------------------
+
 
 def run_lightgbm_baseline(
     train_df: pd.DataFrame,
@@ -296,7 +304,8 @@ def run_lightgbm_baseline(
 
         model = lgb.LGBMClassifier(**params) if task_type != "regression" else lgb.LGBMRegressor(**params)
         model.fit(
-            train_x, train_y,
+            train_x,
+            train_y,
             eval_set=[(val_x, val_y)],
             callbacks=callbacks,
         )
@@ -339,6 +348,7 @@ def run_lightgbm_baseline(
 # AutoGluon baseline
 # ---------------------------------------------------------------------------
 
+
 def run_autogluon_baseline(
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
@@ -352,8 +362,7 @@ def run_autogluon_baseline(
         from autogluon.tabular import TabularPredictor
     except ImportError as exc:
         raise ImportError(
-            "autogluon.tabular is required for AutoGluon baseline. "
-            "Install with: pip install autogluon.tabular"
+            "autogluon.tabular is required for AutoGluon baseline. Install with: pip install autogluon.tabular"
         ) from exc
 
     run_id = str(uuid.uuid4())
@@ -374,7 +383,9 @@ def run_autogluon_baseline(
 
         leaderboard = predictor.leaderboard(test_df, silent=True)
         best_score = leaderboard["score_test"].iloc[0] if not leaderboard.empty else None
-        metric_name = predictor.eval_metric.name if hasattr(predictor.eval_metric, "name") else str(predictor.eval_metric)
+        metric_name = (
+            predictor.eval_metric.name if hasattr(predictor.eval_metric, "name") else str(predictor.eval_metric)
+        )
 
         secondary: dict = {}
         if not leaderboard.empty:
@@ -411,9 +422,7 @@ def run_autogluon_baseline(
 # TabRepo loader
 # ---------------------------------------------------------------------------
 
-_TABREPO_RELEASE_URL = (
-    "https://github.com/autogluon/tabrepo/releases/download/v1.0.0/tabrepo_results.parquet"
-)
+_TABREPO_RELEASE_URL = "https://github.com/autogluon/tabrepo/releases/download/v1.0.0/tabrepo_results.parquet"
 
 
 def load_tabrepo_baselines(
@@ -433,10 +442,12 @@ def load_tabrepo_baselines(
         # Try importing tabrepo package first
         try:
             import tabrepo  # type: ignore[import]
+
             df = tabrepo.load_results()
         except ImportError:
             logger.info("tabrepo package not found; downloading from GitHub release: %s", _TABREPO_RELEASE_URL)
             import urllib.request
+
             with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as f:
                 tmp_path = f.name
             try:
@@ -501,6 +512,7 @@ def load_tabrepo_baselines(
 # DB integration helpers
 # ---------------------------------------------------------------------------
 
+
 def _result_to_run_record(
     result: "RunResult",
     dataset_name: str,
@@ -550,15 +562,18 @@ def _load_dataset_for_baseline(
 
     if source == "openml":
         from benchmark.runner import _load_dataset_openml
+
         task_id = entry.get("openml_task_id")
         if task_id is None:
             raise ValueError(f"Registry entry for {dataset_name!r} missing openml_task_id")
         return _load_dataset_openml(task_id)
     elif source == "ludwig":
         from benchmark.runner import _load_dataset_ludwig
+
         return _load_dataset_ludwig(dataset_name)
     else:
         from benchmark.runner import _load_dataset_path
+
         path = entry.get("path") or entry.get("dataset_path")
         if path is None:
             raise ValueError(f"Registry entry for {dataset_name!r} missing path")
@@ -568,6 +583,7 @@ def _load_dataset_for_baseline(
 # ---------------------------------------------------------------------------
 # run_all_baselines
 # ---------------------------------------------------------------------------
+
 
 def run_all_baselines(
     db: "BenchmarkDB",

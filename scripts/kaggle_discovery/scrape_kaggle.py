@@ -4,6 +4,7 @@ Usage:
     python scrape_kaggle.py --pages 500 --output kaggle_registry.json
     python scrape_kaggle.py --min-size 50000 --max-size 500000000 --tags 14101
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Core scraper
 # ---------------------------------------------------------------------------
+
 
 def scrape_kaggle_datasets(
     pages: int = 500,
@@ -158,9 +160,7 @@ def _save_checkpoint(path: Path, results: list[dict], next_page: int) -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Scrape Kaggle dataset catalog and save metadata to JSON."
-    )
+    parser = argparse.ArgumentParser(description="Scrape Kaggle dataset catalog and save metadata to JSON.")
     parser.add_argument("--pages", type=int, default=500, help="Number of pages to scrape (default: 500)")
     parser.add_argument("--file-type", default="csv", help="File type filter (default: csv)")
     parser.add_argument("--tags", default="14101", help="Tag IDs to filter (default: 14101 = tabular data)")

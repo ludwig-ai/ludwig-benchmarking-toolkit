@@ -2,6 +2,7 @@
 
 Estimates total GPU-hours and cloud cost before launching experiments.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,31 +13,31 @@ from typing import Optional
 # Conservative estimates calibrated against TabZilla/AMLB observations.
 WALL_TIME_TABLE: dict[str, dict[str, float]] = {
     # combiner -> {small: <10k rows, medium: 10k-100k, large: >100k}
-    "tabnet":         {"small": 5,  "medium": 12, "large": 30},
-    "transformer":    {"small": 8,  "medium": 18, "large": 45},
-    "ft_transformer": {"small": 7,  "medium": 15, "large": 35},
-    "concat":         {"small": 3,  "medium": 8,  "large": 20},
-    "bert":           {"small": 15, "medium": 30, "large": 60},  # text encoder
-    "default":        {"small": 5,  "medium": 12, "large": 30},
+    "tabnet": {"small": 5, "medium": 12, "large": 30},
+    "transformer": {"small": 8, "medium": 18, "large": 45},
+    "ft_transformer": {"small": 7, "medium": 15, "large": 35},
+    "concat": {"small": 3, "medium": 8, "large": 20},
+    "bert": {"small": 15, "medium": 30, "large": 60},  # text encoder
+    "default": {"small": 5, "medium": 12, "large": 30},
 }
 
 DEFAULT_INSTANCE_TYPES: dict[str, float] = {
-    "g4dn.xlarge (T4, 1 GPU)":    0.15,
-    "g5.xlarge (A10G, 1 GPU)":    0.50,
+    "g4dn.xlarge (T4, 1 GPU)": 0.15,
+    "g5.xlarge (A10G, 1 GPU)": 0.50,
     "g5.12xlarge (A10G, 4 GPUs)": 3.00,
     "g5.48xlarge (A10G, 8 GPUs)": 6.00,
-    "p3.2xlarge (V100, 1 GPU)":   0.90,
-    "p3.8xlarge (V100, 4 GPUs)":  3.60,
+    "p3.2xlarge (V100, 1 GPU)": 0.90,
+    "p3.8xlarge (V100, 4 GPUs)": 3.60,
 }
 
 # GPUs available per instance type (extracted from instance name heuristic)
 _INSTANCE_GPU_COUNT: dict[str, int] = {
-    "g4dn.xlarge (T4, 1 GPU)":    1,
-    "g5.xlarge (A10G, 1 GPU)":    1,
+    "g4dn.xlarge (T4, 1 GPU)": 1,
+    "g5.xlarge (A10G, 1 GPU)": 1,
     "g5.12xlarge (A10G, 4 GPUs)": 4,
     "g5.48xlarge (A10G, 8 GPUs)": 8,
-    "p3.2xlarge (V100, 1 GPU)":   1,
-    "p3.8xlarge (V100, 4 GPUs)":  4,
+    "p3.2xlarge (V100, 1 GPU)": 1,
+    "p3.8xlarge (V100, 4 GPUs)": 4,
 }
 
 
@@ -44,8 +45,8 @@ _INSTANCE_GPU_COUNT: dict[str, int] = {
 class CostEstimate:
     n_experiments: int
     total_gpu_hours: float
-    wall_hours_at_n_gpus: dict[int, float]      # n_gpus -> wall hours
-    estimated_cost_usd: dict[str, float]         # instance_type -> cost USD
+    wall_hours_at_n_gpus: dict[int, float]  # n_gpus -> wall hours
+    estimated_cost_usd: dict[str, float]  # instance_type -> cost USD
     breakdown_by_dataset: Optional[list[dict]] = None
 
 
@@ -105,14 +106,16 @@ def estimate_experiment_cost(
         n_experiments += n_configs_per_dataset
 
         if include_breakdown:
-            breakdown.append({
-                "dataset_name": dataset_name,
-                "n_rows": n_rows,
-                "size_bucket": _size_bucket(n_rows),
-                "avg_wall_min_per_config": round(avg_wall_min, 1),
-                "n_configs": n_configs_per_dataset,
-                "dataset_gpu_hours": round(dataset_gpu_minutes / 60, 2),
-            })
+            breakdown.append(
+                {
+                    "dataset_name": dataset_name,
+                    "n_rows": n_rows,
+                    "size_bucket": _size_bucket(n_rows),
+                    "avg_wall_min_per_config": round(avg_wall_min, 1),
+                    "n_configs": n_configs_per_dataset,
+                    "dataset_gpu_hours": round(dataset_gpu_minutes / 60, 2),
+                }
+            )
 
     total_gpu_hours = total_gpu_minutes / 60.0
 
@@ -141,6 +144,7 @@ def print_cost_report(estimate: CostEstimate) -> None:
     """Prints a formatted cost report (Rich if available, else plain text)."""
     try:
         import rich  # noqa: F401
+
         _rich_available = True
     except ImportError:
         _rich_available = False
@@ -158,12 +162,14 @@ def _print_cost_report_rich(estimate: CostEstimate) -> None:
 
     console = Console()
 
-    console.print(Panel.fit(
-        f"[bold]Ludwig Mega-AutoML Benchmark — Cost Estimate[/bold]\n"
-        f"Total experiments: [cyan]{estimate.n_experiments:,}[/cyan]   "
-        f"Total GPU-hours: [yellow]{estimate.total_gpu_hours:,.1f}[/yellow]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]Ludwig Mega-AutoML Benchmark — Cost Estimate[/bold]\n"
+            f"Total experiments: [cyan]{estimate.n_experiments:,}[/cyan]   "
+            f"Total GPU-hours: [yellow]{estimate.total_gpu_hours:,.1f}[/yellow]",
+            border_style="blue",
+        )
+    )
 
     # Wall time table
     wall_table = Table(title="Wall Clock Time by GPU Count", show_header=True, header_style="bold magenta")

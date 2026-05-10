@@ -13,6 +13,7 @@ Usage:
     python scripts/generate_configs.py --csv mydata.csv --target label \\
         --name my_dataset --configs-dir benchmark/configs
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,15 +35,18 @@ logger = logging.getLogger(__name__)
 # Dataset loading
 # ---------------------------------------------------------------------------
 
+
 def _load_dataframe(entry) -> "pd.DataFrame":  # noqa: F821
     """Load a full (un-split) DataFrame for config generation."""
     from benchmark.dataset_registry import load_dataframe_for_entry
+
     return load_dataframe_for_entry(entry)
 
 
 # ---------------------------------------------------------------------------
 # Per-dataset config generation
 # ---------------------------------------------------------------------------
+
 
 def _generate_for_dataset(
     entry,
@@ -90,6 +94,7 @@ def _generate_for_dataset(
 # CSV-only mode (no registry)
 # ---------------------------------------------------------------------------
 
+
 def _run_csv_mode(args: argparse.Namespace) -> None:
     """Generate configs directly from a CSV file without a registry entry."""
     import pandas as pd
@@ -106,6 +111,7 @@ def _run_csv_mode(args: argparse.Namespace) -> None:
     target = args.target
     if not target:
         from ludwig.automl.target_detection import detect_target_column
+
         result = detect_target_column(df)
         target = result.column
         logger.info("Auto-detected target column: %s (confidence=%.2f)", target, result.confidence)
@@ -117,10 +123,7 @@ def _run_csv_mode(args: argparse.Namespace) -> None:
     sampled = configs_from_dataframe(df, target_column=target, n=args.n, seed=args.seed)
     n_generated = len(sampled)
 
-    valid_configs = [
-        sc.config_dict for sc in sampled
-        if validate_config_for_dataset(sc.config_dict, df).is_valid
-    ]
+    valid_configs = [sc.config_dict for sc in sampled if validate_config_for_dataset(sc.config_dict, df).is_valid]
     n_valid = len(valid_configs)
     elapsed = time.monotonic() - t0
 
@@ -132,13 +135,15 @@ def _run_csv_mode(args: argparse.Namespace) -> None:
             for cfg in valid_configs:
                 f.write(json.dumps(cfg) + "\n")
 
-    print(f"{'[DRY RUN] ' if args.dry_run else ''}{dataset_name}: "
-          f"{n_valid}/{n_generated} valid configs in {elapsed:.1f}s")
+    print(
+        f"{'[DRY RUN] ' if args.dry_run else ''}{dataset_name}: {n_valid}/{n_generated} valid configs in {elapsed:.1f}s"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Registry-based mode
 # ---------------------------------------------------------------------------
+
 
 def _run_registry_mode(args: argparse.Namespace) -> None:
     """Generate configs for one or all datasets in the registry."""
@@ -183,9 +188,7 @@ def _run_registry_mode(args: argparse.Namespace) -> None:
         t0 = time.monotonic()
         try:
             df = _load_dataframe(entry)
-            n_valid, n_generated = _generate_for_dataset(
-                entry, df, configs_dir, args.n, args.seed, args.dry_run
-            )
+            n_valid, n_generated = _generate_for_dataset(entry, df, configs_dir, args.n, args.seed, args.dry_run)
             elapsed = time.monotonic() - t0
 
             # Update registry n_configs field
@@ -196,20 +199,22 @@ def _run_registry_mode(args: argparse.Namespace) -> None:
             total_valid += n_valid
             total_generated += n_generated
             n_ok += 1
-            print(f"{'[DRY RUN] ' if args.dry_run else ''}"
-                  f"{entry.name}: {n_valid}/{n_generated} valid configs in {elapsed:.1f}s")
+            print(
+                f"{'[DRY RUN] ' if args.dry_run else ''}"
+                f"{entry.name}: {n_valid}/{n_generated} valid configs in {elapsed:.1f}s"
+            )
 
         except Exception as exc:
             logger.error("[%s] Failed: %s", entry.name, exc)
             n_fail += 1
 
-    print(f"\nSummary: {n_ok} datasets OK, {n_fail} failed, "
-          f"{total_valid}/{total_generated} valid configs total")
+    print(f"\nSummary: {n_ok} datasets OK, {n_fail} failed, {total_valid}/{total_generated} valid configs total")
 
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -237,14 +242,14 @@ def _build_parser() -> argparse.ArgumentParser:
     csv_group.add_argument("--name", help="Dataset name (defaults to CSV stem)")
 
     # Shared
-    parser.add_argument("--configs-dir", default="benchmark/configs",
-                        help="Directory to write configs.jsonl files (default: benchmark/configs)")
-    parser.add_argument("--n", type=int, default=100,
-                        help="Number of configs to generate per dataset (default: 100)")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed (default: 42)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Validate and count but do not write any files")
+    parser.add_argument(
+        "--configs-dir",
+        default="benchmark/configs",
+        help="Directory to write configs.jsonl files (default: benchmark/configs)",
+    )
+    parser.add_argument("--n", type=int, default=100, help="Number of configs to generate per dataset (default: 100)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
+    parser.add_argument("--dry-run", action="store_true", help="Validate and count but do not write any files")
 
     return parser
 

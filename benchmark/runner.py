@@ -1,4 +1,5 @@
 """Runs a single Ludwig training experiment and records results."""
+
 from __future__ import annotations
 
 import logging
@@ -21,20 +22,20 @@ class RunConfig:
     run_id: str
     dataset_name: str
     dataset_source: Literal["openml", "kaggle", "ludwig", "path"]
-    dataset_path: str | None    # Direct path if dataset_source == "path"
+    dataset_path: str | None  # Direct path if dataset_source == "path"
     openml_task_id: int | None
     config_dict: dict
     config_hash: str
     output_dir: str
     seed: int = 42
-    time_limit_s: int = 1800    # 30 min
+    time_limit_s: int = 1800  # 30 min
     gpu_id: int | None = None
 
 
 @dataclass
 class RunResult:
     run_id: str
-    status: str                 # "done" | "failed" | "timeout" | "oom"
+    status: str  # "done" | "failed" | "timeout" | "oom"
     wall_seconds: float
     primary_metric: str | None
     primary_metric_value: float | None
@@ -48,6 +49,7 @@ class RunResult:
 # ---------------------------------------------------------------------------
 # Dataset loading
 # ---------------------------------------------------------------------------
+
 
 def _load_dataset_openml(task_id: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load dataset from OpenML using Ludwig's OpenMLLoader, returning (train, val, test)."""
@@ -101,9 +103,7 @@ def _load_dataset(cfg: RunConfig) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
         return _load_dataset_ludwig(cfg.dataset_name)
     elif source == "kaggle":
         if cfg.dataset_path is None:
-            raise ValueError(
-                "dataset_source='kaggle' requires dataset_path to point to a locally downloaded file"
-            )
+            raise ValueError("dataset_source='kaggle' requires dataset_path to point to a locally downloaded file")
         return _load_dataset_path(cfg.dataset_path)
     else:
         raise ValueError(f"Unknown dataset_source: {source!r}")
@@ -113,12 +113,14 @@ def _load_dataset(cfg: RunConfig) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
 # GPU environment setup
 # ---------------------------------------------------------------------------
 
+
 def _setup_gpu_env(gpu_id: int | None) -> str | None:
     """Set CUDA_VISIBLE_DEVICES and return GPU type string."""
     if gpu_id is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     try:
         import torch
+
         if torch.cuda.is_available():
             return torch.cuda.get_device_name(0)
     except Exception:
@@ -129,6 +131,7 @@ def _setup_gpu_env(gpu_id: int | None) -> str | None:
 # ---------------------------------------------------------------------------
 # Timeout support (SIGALRM on Unix, threading.Timer fallback)
 # ---------------------------------------------------------------------------
+
 
 class _TimeoutExpired(Exception):
     pass
@@ -152,6 +155,7 @@ class _TimeoutContext:
             # set a flag that run_experiment checks, or raise in main thread
             # via ctypes (best-effort).
             import ctypes
+
             ctypes.pythonapi.PyThreadState_SetAsyncExc(
                 ctypes.c_ulong(threading.main_thread().ident),  # type: ignore[arg-type]
                 ctypes.py_object(_TimeoutExpired),
@@ -182,6 +186,7 @@ class _TimeoutContext:
 # NaN-loss guard
 # ---------------------------------------------------------------------------
 
+
 def _check_train_stats_for_nan(train_stats: dict) -> bool:
     """Return True if training loss went NaN in the first epoch."""
     try:
@@ -192,6 +197,7 @@ def _check_train_stats_for_nan(train_stats: dict) -> bool:
                     if "loss" in metric_name and values:
                         first_val = values[0]
                         import math
+
                         if isinstance(first_val, float) and math.isnan(first_val):
                             return True
     except Exception:
@@ -202,6 +208,7 @@ def _check_train_stats_for_nan(train_stats: dict) -> bool:
 # ---------------------------------------------------------------------------
 # Primary metric extraction
 # ---------------------------------------------------------------------------
+
 
 def _extract_primary_metric(
     eval_stats: dict,
@@ -256,6 +263,7 @@ def _extract_primary_metric(
 # ---------------------------------------------------------------------------
 # Core experiment runner
 # ---------------------------------------------------------------------------
+
 
 def run_experiment(cfg: RunConfig) -> RunResult:
     """Runs one Ludwig training experiment.
@@ -321,9 +329,7 @@ def run_experiment(cfg: RunConfig) -> RunResult:
 
             wall_seconds = time.monotonic() - wall_start
 
-            primary_metric, primary_value, secondary = _extract_primary_metric(
-                eval_stats, cfg.config_dict
-            )
+            primary_metric, primary_value, secondary = _extract_primary_metric(eval_stats, cfg.config_dict)
 
             checkpoint = str(model_output_dir) if model_output_dir else None
 
@@ -399,6 +405,7 @@ def run_experiment(cfg: RunConfig) -> RunResult:
 # ---------------------------------------------------------------------------
 # Ray remote wrapper
 # ---------------------------------------------------------------------------
+
 
 def run_experiment_remote(cfg: RunConfig) -> RunResult:
     """Ray remote version of run_experiment for distributed execution."""

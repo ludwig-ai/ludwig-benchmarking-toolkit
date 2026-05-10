@@ -1,4 +1,5 @@
 """Unit tests for benchmark.exporter — dashboard JSON export."""
+
 from __future__ import annotations
 
 import json

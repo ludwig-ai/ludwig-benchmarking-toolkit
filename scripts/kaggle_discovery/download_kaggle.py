@@ -10,6 +10,7 @@ Options:
     --max-datasets  Maximum number to download (default: all)
     --skip-existing Skip datasets already downloaded
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,6 +28,7 @@ _MANIFEST_FILENAME = "downloaded.json"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _safe_dir_name(ref: str) -> str:
     """Convert a Kaggle ref (user/dataset) to a safe directory name."""
@@ -61,6 +63,7 @@ def _save_manifest(output_dir: Path, manifest: dict[str, str]) -> None:
 # ---------------------------------------------------------------------------
 # Core downloader
 # ---------------------------------------------------------------------------
+
 
 def download_kaggle_datasets(
     ml_ready_json: str | Path,
@@ -154,7 +157,10 @@ def download_kaggle_datasets(
 
     logger.info(
         "Done. Success=%d, Skipped=%d, Failed=%d. Manifest: %s",
-        n_success, n_skip, n_fail, output_dir / _MANIFEST_FILENAME,
+        n_success,
+        n_skip,
+        n_fail,
+        output_dir / _MANIFEST_FILENAME,
     )
     return manifest
 
@@ -162,6 +168,7 @@ def download_kaggle_datasets(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(

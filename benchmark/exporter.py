@@ -22,6 +22,7 @@ The landing page loads `summary.json`, `datasets.json`, `combiners.json`.
 All JSON files are generated from the BenchmarkDB Parquet store + an optional
 dataset registry dict (for metadata like n_rows, task_type, etc.).
 """
+
 from __future__ import annotations
 
 import json
@@ -135,14 +136,27 @@ def _export_dataset(
         if c and not c.startswith("baseline_") and v is not None and not (isinstance(v, float) and math.isnan(v)):
             if c not in combiner_best or v > combiner_best[c]:
                 combiner_best[c] = float(v)
-    combiner_scores = [{"combiner": c, "best_score": _serializable(v)} for c, v in sorted(combiner_best.items(), key=lambda x: -(x[1] or 0))]
+    combiner_scores = [
+        {"combiner": c, "best_score": _serializable(v)}
+        for c, v in sorted(combiner_best.items(), key=lambda x: -(x[1] or 0))
+    ]
 
     reg = registry_entry or {}
     dataset_doc = {
         "name": name,
         "source": reg.get("source", df_dataset["dataset_source"].iloc[0] if len(df_dataset) else ""),
-        "n_rows": reg.get("n_rows") or (int(df_dataset["dataset_n_rows"].iloc[0]) if len(df_dataset) and "dataset_n_rows" in df_dataset.columns else None),
-        "n_features": reg.get("n_features") or (int(df_dataset["dataset_n_features"].iloc[0]) if len(df_dataset) and "dataset_n_features" in df_dataset.columns else None),
+        "n_rows": reg.get("n_rows")
+        or (
+            int(df_dataset["dataset_n_rows"].iloc[0])
+            if len(df_dataset) and "dataset_n_rows" in df_dataset.columns
+            else None
+        ),
+        "n_features": reg.get("n_features")
+        or (
+            int(df_dataset["dataset_n_features"].iloc[0])
+            if len(df_dataset) and "dataset_n_features" in df_dataset.columns
+            else None
+        ),
         "task_type": reg.get("task_type"),
         "target_column": reg.get("target_column"),
         "primary_metric": primary_metric,
@@ -205,15 +219,17 @@ def _export_config(
         ds_name = row["dataset_name"]
         rank = dataset_ranks.get((ds_name, config_hash))
         score = _serializable(row.get("primary_metric_value"))
-        dataset_scores.append({
-            "dataset_name": ds_name,
-            "run_id": row["run_id"],
-            "primary_metric": row.get("primary_metric", ""),
-            "primary_metric_value": score,
-            "rank_on_dataset": rank,
-            "wall_seconds": _serializable(row.get("wall_seconds")),
-            "status": row["status"],
-        })
+        dataset_scores.append(
+            {
+                "dataset_name": ds_name,
+                "run_id": row["run_id"],
+                "primary_metric": row.get("primary_metric", ""),
+                "primary_metric_value": score,
+                "rank_on_dataset": rank,
+                "wall_seconds": _serializable(row.get("wall_seconds")),
+                "status": row["status"],
+            }
+        )
         if rank is not None:
             ranks.append(rank)
         if score is not None:
@@ -269,10 +285,7 @@ def _compute_combiner_stats(
     dataset_ranks: dict[tuple[str, str], int],
 ) -> list[dict]:
     """Compute per-combiner aggregate stats across all datasets."""
-    done = df[
-        (df["status"] == "done") &
-        (~df["combiner"].str.startswith("baseline_", na=False))
-    ].copy()
+    done = df[(df["status"] == "done") & (~df["combiner"].str.startswith("baseline_", na=False))].copy()
 
     if done.empty:
         return []
@@ -287,9 +300,12 @@ def _compute_combiner_stats(
     stats = []
     for combiner, rows in groups.items():
         n_runs = len(rows)
-        scores = [float(r["primary_metric_value"]) for r in rows
-                  if r.get("primary_metric_value") is not None
-                  and not (isinstance(r["primary_metric_value"], float) and math.isnan(r["primary_metric_value"]))]
+        scores = [
+            float(r["primary_metric_value"])
+            for r in rows
+            if r.get("primary_metric_value") is not None
+            and not (isinstance(r["primary_metric_value"], float) and math.isnan(r["primary_metric_value"]))
+        ]
 
         all_ranks = [dataset_ranks.get((r["dataset_name"], r["config_hash"])) for r in rows]
         valid_ranks = [rk for rk in all_ranks if rk is not None]
@@ -304,17 +320,19 @@ def _compute_combiner_stats(
         mean_s = sum(s_arr) / len(s_arr) if s_arr else None
         mean_r = sum(valid_ranks) / len(valid_ranks) if valid_ranks else None
 
-        stats.append({
-            "combiner": combiner,
-            "n_runs": n_runs,
-            "n_datasets_tested": n_datasets,
-            "n_wins": n_wins,
-            "win_rate": win_rate,
-            "mean_score": round(mean_s, 4) if mean_s is not None else None,
-            "p25_score": round(p25, 4) if p25 is not None else None,
-            "p75_score": round(p75, 4) if p75 is not None else None,
-            "mean_rank": round(mean_r, 2) if mean_r is not None else None,
-        })
+        stats.append(
+            {
+                "combiner": combiner,
+                "n_runs": n_runs,
+                "n_datasets_tested": n_datasets,
+                "n_wins": n_wins,
+                "win_rate": win_rate,
+                "mean_score": round(mean_s, 4) if mean_s is not None else None,
+                "p25_score": round(p25, 4) if p25 is not None else None,
+                "p75_score": round(p75, 4) if p75 is not None else None,
+                "mean_rank": round(mean_r, 2) if mean_r is not None else None,
+            }
+        )
 
     stats.sort(key=lambda x: (-x["n_wins"], x.get("mean_rank") or 999))
     return stats
@@ -335,7 +353,9 @@ def _export_run(row: pd.Series, out_dir: Path) -> None:
         "dataset_n_features": _serializable(row.get("dataset_n_features")),
         "config_hash": row["config_hash"],
         "combiner": row.get("combiner", ""),
-        "input_encoders": json.loads(row["input_encoders"]) if isinstance(row.get("input_encoders"), str) else (row.get("input_encoders") or []),
+        "input_encoders": json.loads(row["input_encoders"])
+        if isinstance(row.get("input_encoders"), str)
+        else (row.get("input_encoders") or []),
         "output_decoder": row.get("output_decoder", ""),
         "learning_rate": _serializable(row.get("learning_rate")),
         "batch_size": _serializable(row.get("batch_size")),
@@ -348,7 +368,9 @@ def _export_run(row: pd.Series, out_dir: Path) -> None:
         "gpu_type": row.get("gpu_type", ""),
         "primary_metric": row.get("primary_metric", ""),
         "primary_metric_value": _serializable(row.get("primary_metric_value")),
-        "secondary_metrics": json.loads(row["secondary_metrics"]) if isinstance(row.get("secondary_metrics"), str) else (row.get("secondary_metrics") or {}),
+        "secondary_metrics": json.loads(row["secondary_metrics"])
+        if isinstance(row.get("secondary_metrics"), str)
+        else (row.get("secondary_metrics") or {}),
         "error_message": row.get("error_message", "") or "",
         "checkpoint_path": row.get("checkpoint_path", "") or "",
     }
@@ -397,12 +419,15 @@ def export_dashboard(
     all_runs = db.list_runs()
     if all_runs.empty:
         logger.warning("No runs found in database — writing empty dashboard.")
-        _write_json(out_dir / "summary.json", {
-            "generated_at": datetime.now(tz=timezone.utc).isoformat(),
-            "n_datasets": 0,
-            "n_runs_total": 0,
-            "n_runs_done": 0,
-        })
+        _write_json(
+            out_dir / "summary.json",
+            {
+                "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+                "n_datasets": 0,
+                "n_runs_total": 0,
+                "n_runs_done": 0,
+            },
+        )
         return out_dir
 
     reg = registry or {}
@@ -486,7 +511,10 @@ def export_dashboard(
 
     logger.info(
         "Dashboard export complete: %d datasets, %d configs, %d runs → %s",
-        n_datasets, n_configs, len(all_runs), out_dir,
+        n_datasets,
+        n_configs,
+        len(all_runs),
+        out_dir,
     )
     return out_dir
 
