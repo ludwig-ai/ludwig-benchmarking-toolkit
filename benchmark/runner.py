@@ -300,6 +300,9 @@ def run_experiment(cfg: RunConfig) -> RunResult:
     - Catch all other exceptions → status="failed", record error_message
     - On NaN loss after first epoch → raise early to save compute
     """
+    import gc
+
+    import torch
     from ludwig.api import LudwigModel
 
     _setup_gpu_env(cfg.gpu_id)
@@ -310,6 +313,20 @@ def run_experiment(cfg: RunConfig) -> RunResult:
 
     dataset_n_rows = 0
     dataset_n_features = 0
+    model = None
+
+    def _free_gpu():
+        """Release model GPU tensors and clear the CUDA memory cache."""
+        nonlocal model
+        if model is not None:
+            try:
+                del model
+            except Exception:
+                pass
+            model = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     try:
         with _TimeoutContext(cfg.time_limit_s):
@@ -353,6 +370,7 @@ def run_experiment(cfg: RunConfig) -> RunResult:
             )
 
             checkpoint = str(model_output_dir) if model_output_dir else None
+            _free_gpu()
 
             return RunResult(
                 run_id=cfg.run_id,
@@ -370,6 +388,7 @@ def run_experiment(cfg: RunConfig) -> RunResult:
     except _TimeoutExpired:
         wall_seconds = time.monotonic() - wall_start
         logger.warning("[%s] Timed out after %.1fs", cfg.run_id, wall_seconds)
+        _free_gpu()
         return RunResult(
             run_id=cfg.run_id,
             status="timeout",
@@ -392,6 +411,7 @@ def run_experiment(cfg: RunConfig) -> RunResult:
         else:
             status = "failed"
             logger.error("[%s] RuntimeError: %s", cfg.run_id, msg)
+        _free_gpu()
         return RunResult(
             run_id=cfg.run_id,
             status=status,
@@ -409,6 +429,7 @@ def run_experiment(cfg: RunConfig) -> RunResult:
         wall_seconds = time.monotonic() - wall_start
         msg = traceback.format_exc()
         logger.error("[%s] Experiment failed:\n%s", cfg.run_id, msg)
+        _free_gpu()
         return RunResult(
             run_id=cfg.run_id,
             status="failed",

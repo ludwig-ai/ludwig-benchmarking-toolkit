@@ -377,16 +377,28 @@ def _job_to_run_config(job: BenchmarkJob, run_id: str, time_limit_s: int, gpu_id
 
     from benchmark.runner import RunConfig
 
-    # Load the config dict from the jsonl file at config_index
+    # Load the config dict by matching config_hash (robust to file regeneration).
+    # Falls back to config_index only when the hash is absent or unmatched.
     config_dict: dict = {}
     try:
         with open(job.config_path) as f:
-            for i, line in enumerate(f):
-                if i == job.config_index:
-                    config_dict = json.loads(line.strip())
-                    break
+            lines = f.readlines()
+        # First pass: find by hash
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            candidate = json.loads(line)
+            if _hash_config(candidate) == job.config_hash:
+                config_dict = candidate
+                break
+        # Fallback: positional index (legacy behaviour)
+        if not config_dict and 0 <= job.config_index < len(lines):
+            line = lines[job.config_index].strip()
+            if line:
+                config_dict = json.loads(line)
     except Exception as exc:
-        logger.warning("Could not load config from %s[%d]: %s", job.config_path, job.config_index, exc)
+        logger.warning("Could not load config from %s (hash=%s): %s", job.config_path, job.config_hash, exc)
 
     # For OpenML sources, extract task ID from dataset_name (e.g. "openml_task_7592").
     openml_task_id: int | None = None
