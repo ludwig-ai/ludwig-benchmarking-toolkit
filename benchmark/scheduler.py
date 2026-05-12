@@ -233,7 +233,7 @@ class BenchmarkScheduler:
 
     def run_sequential(self, time_limit_per_job: int = 1800, gpu_id: int | None = None) -> None:
         """Run all queued jobs sequentially (for single-machine use)."""
-        from benchmark.runner import RunResult, run_experiment
+        from benchmark.runner import RunResult, run_experiment_isolated
 
         while True:
             job = self.next_job()
@@ -247,7 +247,7 @@ class BenchmarkScheduler:
             self.mark_running(job.job_id)
             logger.info("Running job %s / run %s (%s / %s)", job.job_id, run_id, job.dataset_name, job.config_hash)
 
-            result: RunResult = run_experiment(cfg)
+            result: RunResult = run_experiment_isolated(cfg)
 
             record = _result_to_record(result, job, cfg)
             self.db.upsert_run(record)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing as mp
 import os
 import signal
 import threading
@@ -465,3 +466,67 @@ def run_experiment_remote(cfg: RunConfig) -> RunResult:
     except ImportError:
         logger.warning("Ray not installed — falling back to local execution")
         return run_experiment(cfg)
+
+
+# ---------------------------------------------------------------------------
+# Subprocess-isolated runner (prevents GPU memory leak across jobs)
+# ---------------------------------------------------------------------------
+
+def _subprocess_worker(cfg: RunConfig, queue: "mp.Queue[RunResult]") -> None:
+    """Worker target: runs run_experiment and puts the result on the queue."""
+    result = run_experiment(cfg)
+    queue.put(result)
+
+
+def run_experiment_isolated(cfg: RunConfig) -> RunResult:
+    """Runs run_experiment in a fresh 'spawn' subprocess for complete GPU isolation.
+
+    After a CUDA OOM the GPU allocator state is corrupted and cannot be fully
+    recovered inside the same process via gc/empty_cache.  Spawning a new process
+    guarantees that CUDA is re-initialised from scratch for every job, preventing
+    cascading OOM failures.
+    """
+    ctx = mp.get_context("spawn")
+    result_queue: mp.Queue = ctx.Queue()
+
+    p = ctx.Process(target=_subprocess_worker, args=(cfg, result_queue), daemon=True)
+    p.start()
+
+    # Give the subprocess an extra 60 s beyond the internal SIGALRM budget.
+    deadline = cfg.time_limit_s + 60
+    p.join(deadline)
+
+    if p.is_alive():
+        logger.warning("[%s] Subprocess did not finish within %ds — killing", cfg.run_id, deadline)
+        p.kill()
+        p.join(5)
+        return RunResult(
+            run_id=cfg.run_id,
+            status="timeout",
+            wall_seconds=float(deadline),
+            primary_metric=None,
+            primary_metric_value=None,
+            secondary_metrics={},
+            error_message=f"Subprocess timed out after {deadline}s",
+            checkpoint_path=None,
+            dataset_n_rows=0,
+            dataset_n_features=0,
+        )
+
+    if not result_queue.empty():
+        result = result_queue.get_nowait()
+        return result
+
+    exit_code = p.exitcode
+    return RunResult(
+        run_id=cfg.run_id,
+        status="failed",
+        wall_seconds=0.0,
+        primary_metric=None,
+        primary_metric_value=None,
+        secondary_metrics={},
+        error_message=f"Subprocess exited with code {exit_code} and produced no result",
+        checkpoint_path=None,
+        dataset_n_rows=0,
+        dataset_n_features=0,
+    )
