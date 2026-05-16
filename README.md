@@ -288,14 +288,12 @@ The dashboard loads `summary.json` and `datasets.json` on the landing page. Data
 
 ## Requirements
 
-**Core**
+Install core dependencies:
 
-- Python 3.10+
-- `ludwig` (installed from source)
-- `pandas`, `numpy`, `pyarrow`
-- `duckdb >= 0.10.0`
-- `filelock >= 3.12.0`
-- `rich >= 13.0.0` (optional — plain-text fallback if absent)
+```bash
+pip install -r requirements.txt
+pip install ludwig>=0.11
+```
 
 **Dataset sources** (install as needed)
 
